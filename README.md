@@ -1,6 +1,6 @@
 # Dashboard tiến độ tạo BOM & PO
 
-Dashboard tĩnh (chạy hoàn toàn trên trình duyệt) để theo dõi tiến độ tạo BOM và PO trên hệ thống: lọc theo thời gian, người tạo, khách hàng, loại BOM/PO, stage, trạng thái; xem theo ngày/tuần/tháng và theo khung giờ upload SAP/Centric; có bảng chi tiết và xuất CSV.
+Dashboard tĩnh (chạy hoàn toàn trên trình duyệt) để theo dõi tiến độ tạo BOM và PO trên hệ thống: lọc theo thời gian, người tạo, khách hàng, loại BOM/PO, stage, trạng thái; xem theo ngày/tuần/tháng và theo khung giờ upload SAP/Centric.
 
 ## Cấu trúc
 
@@ -41,4 +41,5 @@ rồi commit + push file `data.js` mới (hoặc upload đè `data.js` qua giao 
 - Cột **Created Date** trong file xuất chỉ có ngày, không có giờ, nên biểu đồ "theo khung giờ" dựa trên timestamp **Upload SAP Date / Upload Centric Date**. Nếu sau này file xuất có kèm giờ ở Created Date, dashboard/script vẫn đọc bình thường.
 - File xuất có lỗi ngày tháng bị đảo (ngày ≤ 12 bị Excel hiểu nhầm định dạng Mỹ mm/dd) — cả `tools/update_data.py` lẫn phần kéo-thả đều tự sửa lại.
 - Các dòng ghi chú (remark) tràn dòng trong sheet BOM được tự động loại bỏ.
+- `data.js` chỉ chứa các trường phục vụ biểu đồ tổng hợp (ngày tạo, người tạo, khách hàng, loại, stage/trạng thái, giờ upload) — **không** chứa mã sản phẩm, số BOM/PO, nhà cung cấp hay giá trị đơn hàng, nên an toàn khi đặt trên repo public.
 - Dữ liệu chỉ được xử lý trong trình duyệt của người xem, không gửi đi máy chủ nào.

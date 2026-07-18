@@ -87,20 +87,16 @@ def main(xlsx_path, out_path):
         # hoặc BOM Type không hợp lệ
         if not d or not creator or btype not in VALID_BOM_TYPES:
             continue
+        # Chỉ giữ các trường phục vụ biểu đồ tổng hợp — KHÔNG kèm mã sản phẩm,
+        # số BOM hay chi tiết đơn hàng (dashboard đặt trên repo public).
         bom_rows.append([
             d,                       # 0 created date ISO
             creator,                 # 1 created by
             clean(r[6]),             # 2 customer
             btype,                   # 3 bom type
             clean(r[12]),            # 4 stage
-            clean(r[10]),            # 5 order type
-            clean(r[2]),             # 6 season
-            clean(r[4]),             # 7 year
-            clean(r[1]),             # 8 product code
-            clean(r[7]),             # 9 BOM no
-            clean(r[23]),            # 10 import (Checked/Unchecked/Indeterminate)
-            dt_iso(r[24]),           # 11 upload SAP datetime
-            dt_iso(r[25]),           # 12 upload Centric datetime
+            dt_iso(r[24]),           # 5 upload SAP datetime
+            dt_iso(r[25]),           # 6 upload Centric datetime
         ])
 
     po_rows = []
@@ -110,24 +106,13 @@ def main(xlsx_path, out_path):
         creator = clean(r[16])       # Created By
         if not pono or not d or not creator:
             continue
-        amt = r[8]
-        try:
-            amt = round(float(amt), 2) if amt is not None and not pd.isna(amt) else None
-        except (TypeError, ValueError):
-            amt = None
+        # Chỉ giữ trường tổng hợp — KHÔNG kèm số PO, nhà cung cấp, giá trị đơn hàng.
         po_rows.append([
             d,                       # 0 created date ISO
             creator,                 # 1 created by
             after_dash(r[4]),        # 2 customer
             after_dash(r[1]),        # 3 PO type
             after_dash(r[3]),        # 4 status
-            pono,                    # 5 PO no
-            after_dash(r[7]),        # 6 vendor
-            amt,                     # 7 amount
-            clean(r[9]),             # 8 currency
-            fix_date(r[2])[0],       # 9 document date
-            fix_date(r[19])[0],      # 10 approved date
-            clean(r[20]),            # 11 approved by
         ])
 
     payload = {

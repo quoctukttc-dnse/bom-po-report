@@ -181,14 +181,6 @@ svg text { font-family: inherit; }
 #tip .t-val { font-weight: 650; font-variant-numeric: tabular-nums; }
 #tip .t-name { color: var(--text-secondary); }
 
-/* ---- table ---- */
-.tbl-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-.tbl-wrap { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 12.8px; }
-th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
-th { color: var(--text-muted); font-weight: 550; font-size: 12px; position: sticky; top: 0; background: var(--surface-1); }
-td.num { text-align: right; font-variant-numeric: tabular-nums; }
-.pager { display: flex; gap: 8px; align-items: center; padding: 10px 0 4px; color: var(--text-muted); font-size: 12.5px; }
 .empty-note { color: var(--text-muted); text-align: center; padding: 28px 0; }
 footer { color: var(--text-muted); font-size: 12px; margin-top: 18px; }
 </style>
@@ -250,8 +242,9 @@ footer { color: var(--text-muted); font-size: 12px; margin-top: 18px; }
 <script>
 "use strict";
 /* ================= dữ liệu & tiện ích ================= */
-// BOM row: [0 date,1 creator,2 customer,3 bomType,4 stage,5 orderType,6 season,7 year,8 productCode,9 bomNo,10 import,11 sapDT,12 cenDT]
-// PO row:  [0 date,1 creator,2 customer,3 poType,4 status,5 poNo,6 vendor,7 amount,8 currency,9 docDate,10 apprDate,11 apprBy]
+// BOM row: [0 date,1 creator,2 customer,3 bomType,4 stage,5 sapDT,6 cenDT]
+// PO row:  [0 date,1 creator,2 customer,3 poType,4 status]
+// (chỉ chứa trường tổng hợp — không có mã SP, số BOM/PO, nhà cung cấp, giá trị)
 var DATA = (typeof window.DEFAULT_DATA === 'object' && window.DEFAULT_DATA) || { bom: [], po: [], generatedAt: '', sourceFile: '' };
 
 var fmtInt = new Intl.NumberFormat('vi-VN');
@@ -292,8 +285,7 @@ var state = {
   preset: '30', from: null, to: null,
   creators: null, customers: null,        // null = tất cả, Set = đã chọn
   bomTypes: null, stages: null, poTypes: null, poStatuses: null,
-  gran: 'day', hourSrc: 'sap',
-  tblPageB: 0, tblPageP: 0, tblSearch: ''
+  gran: 'day', hourSrc: 'sap'
 };
 
 function dateWindow() {
@@ -691,8 +683,8 @@ function hourCats() {
 function renderBOMTab() {
   var bom = filteredBOM();
   var t = todayISO();
-  var sapDone = bom.filter(function (r) { return r[11]; }).length;
-  var cenDone = bom.filter(function (r) { return r[12]; }).length;
+  var sapDone = bom.filter(function (r) { return r[5]; }).length;
+  var cenDone = bom.filter(function (r) { return r[6]; }).length;
   var kpis = el('div', 'kpis');
   kpis.appendChild(kpiTile('BOM trong kỳ', fmtInt.format(bom.length),
     'TB ' + fmtInt.format(Math.round(bom.length / daysInWindowWithData(bom))) + '/ngày có tạo'));
@@ -715,7 +707,7 @@ function renderBOMTab() {
     [{ value: 'sap', label: 'Upload SAP' }, { value: 'cen', label: 'Upload Centric' }],
     state.hourSrc, function (v) { state.hourSrc = v; renderAll(); }));
   var ch2 = el('div'); c2.card.appendChild(ch2); content.appendChild(c2.card);
-  var idx = state.hourSrc === 'sap' ? 11 : 12;
+  var idx = state.hourSrc === 'sap' ? 5 : 6;
   var hmap = {};
   bom.forEach(function (r) {
     var v = r[idx];
@@ -741,8 +733,6 @@ function renderBOMTab() {
   content.appendChild(g2);
   hbarChart(ch5, topCounts(bom, 3, 8), cvar('--series-1'), { nameW: 150 });
   hbarChart(ch6, topCounts(bom, 4, 10), cvar('--series-1'), { nameW: 190 });
-
-  renderTable('bom', bom);
 }
 
 function renderPOTab() {
@@ -782,127 +772,6 @@ function renderPOTab() {
   content.appendChild(g2);
   hbarChart(ch5, topCounts(po, 3, 8), cvar('--series-2'), { nameW: 175 });
   hbarChart(ch6, topCounts(po, 4, 6), cvar('--series-2'), { nameW: 150 });
-
-  renderTable('po', po);
-}
-
-/* ================= bảng chi tiết ================= */
-var BOM_COLS = [
-  { h: 'Ngày tạo', f: function (r) { return fmtD(r[0]); } },
-  { h: 'Người tạo', f: function (r) { return r[1] || ''; } },
-  { h: 'Khách hàng', f: function (r) { return r[2] || ''; } },
-  { h: 'Mã SP', f: function (r) { return r[8] || ''; } },
-  { h: 'BOM No.', f: function (r) { return r[9] || ''; } },
-  { h: 'Loại BOM', f: function (r) { return r[3] || ''; } },
-  { h: 'Stage', f: function (r) { return r[4] || ''; } },
-  { h: 'Season', f: function (r) { return (r[6] || '') + (r[7] ? ' ' + r[7] : ''); } },
-  { h: 'Upload SAP', f: function (r) { return r[11] ? fmtD(r[11].slice(0, 10)) + r[11].slice(10, 16) : ''; } },
-  { h: 'Upload Centric', f: function (r) { return r[12] ? fmtD(r[12].slice(0, 10)) + r[12].slice(10, 16) : ''; } }
-];
-var PO_COLS = [
-  { h: 'Ngày tạo', f: function (r) { return fmtD(r[0]); } },
-  { h: 'Người tạo', f: function (r) { return r[1] || ''; } },
-  { h: 'PO No.', f: function (r) { return r[5] || ''; } },
-  { h: 'Khách hàng', f: function (r) { return r[2] || ''; } },
-  { h: 'Nhà cung cấp', f: function (r) { return r[6] || ''; } },
-  { h: 'Loại PO', f: function (r) { return r[3] || ''; } },
-  { h: 'Trạng thái', f: function (r) { return r[4] || ''; } },
-  { h: 'Giá trị', f: function (r) { return r[7] != null ? fmtInt.format(r[7]) + ' ' + (r[8] || '') : ''; }, num: true },
-  { h: 'Ngày duyệt', f: function (r) { return r[10] ? fmtD(r[10]) : ''; } }
-];
-var PAGE = 50;
-function renderTable(kind, rows) {
-  var cols = kind === 'bom' ? BOM_COLS : PO_COLS;
-  var page = kind === 'bom' ? state.tblPageB : state.tblPageP;
-  var c = makeCard('Chi tiết ' + (kind === 'bom' ? 'BOM' : 'PO'), '');
-  var tools = el('div', 'tbl-tools');
-  var search = document.createElement('input');
-  search.type = 'search'; search.placeholder = 'Tìm trong bảng…';
-  search.value = state.tblSearch;
-  tools.appendChild(search);
-  var exportBtn = el('button', null, 'Tải CSV (dữ liệu đã lọc)');
-  tools.appendChild(exportBtn);
-  var info = el('span', null, '');
-  info.style.cssText = 'color:var(--text-muted);font-size:12.5px;margin-left:auto;';
-  tools.appendChild(info);
-  c.card.appendChild(tools);
-  var wrap = el('div', 'tbl-wrap');
-  c.card.appendChild(wrap);
-  var pager = el('div', 'pager');
-  c.card.appendChild(pager);
-  content.appendChild(c.card);
-
-  var view = rows;
-  var q = state.tblSearch.trim().toLowerCase();
-  if (q) {
-    view = rows.filter(function (r) {
-      return cols.some(function (col) { return String(col.f(r)).toLowerCase().indexOf(q) !== -1; });
-    });
-  }
-  // mới nhất lên đầu
-  view = view.slice().sort(function (a, b) { return a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0; });
-  var pages = Math.max(1, Math.ceil(view.length / PAGE));
-  if (page >= pages) page = pages - 1;
-  info.textContent = fmtInt.format(view.length) + ' dòng';
-
-  function draw() {
-    wrap.textContent = '';
-    var table = document.createElement('table');
-    var thead = document.createElement('thead');
-    var trh = document.createElement('tr');
-    cols.forEach(function (col) { var th = document.createElement('th'); th.textContent = col.h; trh.appendChild(th); });
-    thead.appendChild(trh); table.appendChild(thead);
-    var tbody = document.createElement('tbody');
-    view.slice(page * PAGE, page * PAGE + PAGE).forEach(function (r) {
-      var tr = document.createElement('tr');
-      cols.forEach(function (col) {
-        var td = document.createElement('td');
-        if (col.num) td.className = 'num';
-        td.textContent = col.f(r);
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    pager.textContent = '';
-    var prev = el('button', null, '‹ Trước');
-    var next = el('button', null, 'Sau ›');
-    prev.disabled = page === 0; next.disabled = page >= pages - 1;
-    prev.addEventListener('click', function () { page--; save(); draw(); });
-    next.addEventListener('click', function () { page++; save(); draw(); });
-    pager.appendChild(prev);
-    pager.appendChild(el('span', null, 'Trang ' + (page + 1) + '/' + pages));
-    pager.appendChild(next);
-  }
-  function save() { if (kind === 'bom') state.tblPageB = page; else state.tblPageP = page; }
-  if (state._focusTblSearch) {
-    state._focusTblSearch = false;
-    search.focus();
-    search.setSelectionRange(search.value.length, search.value.length);
-  }
-  var deb;
-  search.addEventListener('input', function () {
-    clearTimeout(deb);
-    deb = setTimeout(function () {
-      state.tblSearch = search.value;
-      state._focusTblSearch = true;
-      page = 0; save(); renderAll();
-    }, 300);
-  });
-  exportBtn.addEventListener('click', function () {
-    var lines = [cols.map(function (col) { return '"' + col.h + '"'; }).join(',')];
-    view.forEach(function (r) {
-      lines.push(cols.map(function (col) { return '"' + String(col.f(r)).replace(/"/g, '""') + '"'; }).join(','));
-    });
-    var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (kind === 'bom' ? 'BOM' : 'PO') + '_loc.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-  draw();
 }
 
 /* ================= dựng filter ================= */
@@ -976,7 +845,7 @@ document.getElementById('fromDate').addEventListener('change', function () { sta
 document.getElementById('toDate').addEventListener('change', function () { state.to = this.value || null; renderAll(); });
 document.getElementById('resetBtn').addEventListener('click', function () {
   state.creators = state.customers = state.bomTypes = state.stages = state.poTypes = state.poStatuses = null;
-  state.preset = '30'; state.from = state.to = null; state.tblSearch = '';
+  state.preset = '30'; state.from = state.to = null;
   document.getElementById('datePreset').value = '30';
   document.getElementById('customRange').classList.remove('show');
   buildFilters();
@@ -1053,9 +922,9 @@ function parseWorkbook(buf, fname) {
     return i !== -1 ? i : fallback;
   }
   var iDate = col('Created Date', 17), iBy = col('Created By', 18), iCus = col('Customer', 6),
-    iType = col('BOM Type', 9), iStage = col('Stage', 12), iOrd = col('Order Type', 10),
-    iSea = col('Season', 2), iYear = col('Year', 4), iCode = col('Product Code', 1),
-    iNo = col('BOM No.', 7), iImp = col('Import', 23), iSap = col('Upload SAP Date', 24), iCen = col('Upload Centric Date', 25);
+    iType = col('BOM Type', 9), iStage = col('Stage', 12),
+    iSap = col('Upload SAP Date', 24), iCen = col('Upload Centric Date', 25);
+  // Chỉ giữ trường tổng hợp (không mã SP, số BOM/PO, nhà cung cấp, giá trị)
   var bom = [];
   for (var r = 1; r < bomRaw.length; r++) {
     var row = bomRaw[r] || [];
@@ -1063,9 +932,8 @@ function parseWorkbook(buf, fname) {
     var by = cleanS(row[iBy]);
     var bt = cleanS(row[iType]);
     if (!fd || !by || !VALID_BOM_TYPES[bt]) continue;
-    bom.push([fd.d, by, cleanS(row[iCus]), bt, cleanS(row[iStage]), cleanS(row[iOrd]),
-      cleanS(row[iSea]), cleanS(row[iYear]), cleanS(row[iCode]), cleanS(row[iNo]),
-      cleanS(row[iImp]), dtISOJS(row[iSap]), dtISOJS(row[iCen])]);
+    bom.push([fd.d, by, cleanS(row[iCus]), bt, cleanS(row[iStage]),
+      dtISOJS(row[iSap]), dtISOJS(row[iCen])]);
   }
   var po = [];
   for (var r2 = 1; r2 < poRaw.length; r2++) {
@@ -1074,11 +942,7 @@ function parseWorkbook(buf, fname) {
     var fd2 = fixDateJS(w[15]);
     var by2 = cleanS(w[16]);
     if (!pono || !fd2 || !by2) continue;
-    var amt = (typeof w[8] === 'number') ? Math.round(w[8] * 100) / 100 : null;
-    var appr = fixDateJS(w[19]);
-    var doc = fixDateJS(w[2]);
-    po.push([fd2.d, by2, afterDash(w[4]), afterDash(w[1]), afterDash(w[3]), pono,
-      afterDash(w[7]), amt, cleanS(w[9]), doc ? doc.d : null, appr ? appr.d : null, cleanS(w[20])]);
+    po.push([fd2.d, by2, afterDash(w[4]), afterDash(w[1]), afterDash(w[3])]);
   }
   var now = new Date();
   return {
