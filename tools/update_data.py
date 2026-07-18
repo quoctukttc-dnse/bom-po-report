@@ -126,6 +126,16 @@ def main(xlsx_path, out_path):
         f.write(js)
     size_mb = os.path.getsize(out_path) / 1e6
     print('Đã ghi %s: %d dòng BOM, %d dòng PO (%.1f MB)' % (out_path, len(bom_rows), len(po_rows), size_mb))
+    # chống cache: đổi version của data.js trong index.html để trình duyệt
+    # người xem luôn tải dữ liệu mới (nhớ commit CẢ index.html lẫn data.js)
+    idx_path = os.path.join(os.path.dirname(out_path), 'index.html')
+    if os.path.exists(idx_path):
+        html = open(idx_path, encoding='utf-8').read()
+        ver = datetime.datetime.now().strftime('%Y%m%d%H%M')
+        new_html = re.sub(r'src="data\.js[^"]*"', 'src="data.js?v=%s"' % ver, html)
+        if new_html != html:
+            open(idx_path, 'w', encoding='utf-8').write(new_html)
+            print('Đã cập nhật index.html -> data.js?v=%s (commit cả 2 file)' % ver)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:

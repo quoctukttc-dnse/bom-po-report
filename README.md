@@ -34,7 +34,7 @@ pip install pandas openpyxl
 python3 tools/update_data.py "đường/dẫn/BOM PO Status.xlsx"
 ```
 
-rồi commit + push file `data.js` mới (hoặc upload đè `data.js` qua giao diện web GitHub). Mọi người mở link sẽ thấy dữ liệu mới mà không cần thao tác gì.
+rồi commit + push **cả `data.js` lẫn `index.html`** (script tự đổi tham số chống cache `data.js?v=...` trong `index.html` để người xem không bị dính dữ liệu cũ do trình duyệt cache). Upload đè qua giao diện web GitHub cũng được. Mọi người mở link sẽ thấy dữ liệu mới mà không cần thao tác gì.
 
 ## Ghi chú về dữ liệu
 
