@@ -238,12 +238,12 @@ footer { color: var(--text-muted); font-size: 12px; margin-top: 18px; }
 </div>
 <div id="tip"></div>
 
-<script src="data.js?v=202607220911"></script>
+<script src="data.js?v=202607220919"></script>
 <script>
 "use strict";
 /* ================= dữ liệu & tiện ích ================= */
-// BOM row: [0 date,1 creator,2 customer,3 bomType,4 stage,5 sapDT,6 cenDT]
-// PO row:  [0 date,1 creator,2 customer,3 poType,4 status]
+// BOM row: [0 date,1 creator,2 customer,3 bomType,4 stage,5 sapDT,6 cenDT,7 importFlag]
+// PO row:  [0 date,1 creator,2 customer,3 poType,4 status,5 sapDate]
 // (chỉ chứa trường tổng hợp — không có mã SP, số BOM/PO, nhà cung cấp, giá trị)
 var DATA = (typeof window.DEFAULT_DATA === 'object' && window.DEFAULT_DATA) || { bom: [], po: [], generatedAt: '', sourceFile: '' };
 
@@ -693,6 +693,21 @@ function renderBOMTab() {
     bom.length ? Math.round(sapDone / bom.length * 100) + '% BOM trong kỳ' : ''));
   kpis.appendChild(kpiTile('Đã upload Centric', fmtInt.format(cenDone),
     bom.length ? Math.round(cenDone / bom.length * 100) + '% BOM trong kỳ' : ''));
+  var impCnt = bom.filter(function (r) { return r[7] === 1; }).length;
+  var impToday = bom.filter(function (r) { return r[0] === t && r[7] === 1; }).length;
+  kpis.appendChild(kpiTile('Import (Checked)', fmtInt.format(impCnt),
+    'hôm nay ' + fmtInt.format(impToday) + (bom.length ? ' · ' + Math.round(impCnt / bom.length * 100) + '% trong kỳ' : '')));
+  var wWin = dateWindow();
+  var allB = filteredBOM(true);
+  var sapEvt = 0, sapEvtToday = 0;
+  allB.forEach(function (r) {
+    if (!r[5]) return;
+    var d = r[5].slice(0, 10);
+    if (inWin(d, wWin)) sapEvt++;
+    if (d === t) sapEvtToday++;
+  });
+  kpis.appendChild(kpiTile('Đẩy lên SAP trong kỳ', fmtInt.format(sapEvt),
+    'hôm nay ' + fmtInt.format(sapEvtToday) + ' · theo ngày upload'));
   kpis.appendChild(kpiTile('Người tạo', fmtInt.format(new Set(bom.map(function (r) { return r[1]; })).size), 'trong kỳ đã lọc'));
   content.appendChild(kpis);
 
@@ -746,6 +761,19 @@ function renderPOTab() {
   kpis.appendChild(kpiTile('Hôm nay', fmtInt.format(po.filter(function (r) { return r[0] === t; }).length), fmtD(t)));
   kpis.appendChild(kpiTile('Confirmed', fmtInt.format(conf), po.length ? Math.round(conf / po.length * 100) + '% trong kỳ' : ''));
   kpis.appendChild(kpiTile('Approved', fmtInt.format(appr), po.length ? Math.round(appr / po.length * 100) + '% trong kỳ' : ''));
+  var sapDone2 = po.filter(function (r) { return r[5]; }).length;
+  kpis.appendChild(kpiTile('Đã lên SAP', fmtInt.format(sapDone2),
+    po.length ? Math.round(sapDone2 / po.length * 100) + '% PO trong kỳ' : ''));
+  var wWin2 = dateWindow();
+  var allP = filteredPO(true);
+  var sapEvt2 = 0, sapEvtToday2 = 0;
+  allP.forEach(function (r) {
+    if (!r[5]) return;
+    if (inWin(r[5], wWin2)) sapEvt2++;
+    if (r[5] === t) sapEvtToday2++;
+  });
+  kpis.appendChild(kpiTile('Đẩy lên SAP trong kỳ', fmtInt.format(sapEvt2),
+    'hôm nay ' + fmtInt.format(sapEvtToday2) + ' · theo ngày upload'));
   kpis.appendChild(kpiTile('Người tạo', fmtInt.format(new Set(po.map(function (r) { return r[1]; })).size), 'trong kỳ đã lọc'));
   content.appendChild(kpis);
 
@@ -923,7 +951,7 @@ function parseWorkbook(buf, fname) {
   }
   var iDate = col('Created Date', 17), iBy = col('Created By', 18), iCus = col('Customer', 6),
     iType = col('BOM Type', 9), iStage = col('Stage', 12),
-    iSap = col('Upload SAP Date', 24), iCen = col('Upload Centric Date', 25);
+    iSap = col('Upload SAP Date', 24), iCen = col('Upload Centric Date', 25), iImp = col('Import', 23);
   // Chỉ giữ trường tổng hợp (không mã SP, số BOM/PO, nhà cung cấp, giá trị)
   var bom = [];
   for (var r = 1; r < bomRaw.length; r++) {
@@ -933,7 +961,7 @@ function parseWorkbook(buf, fname) {
     var bt = cleanS(row[iType]);
     if (!fd || !by || !VALID_BOM_TYPES[bt]) continue;
     bom.push([fd.d, by, cleanS(row[iCus]), bt, cleanS(row[iStage]),
-      dtISOJS(row[iSap]), dtISOJS(row[iCen])]);
+      dtISOJS(row[iSap]), dtISOJS(row[iCen]), cleanS(row[iImp]) === 'Checked' ? 1 : 0]);
   }
   var po = [];
   for (var r2 = 1; r2 < poRaw.length; r2++) {
@@ -942,7 +970,8 @@ function parseWorkbook(buf, fname) {
     var fd2 = fixDateJS(w[15]);
     var by2 = cleanS(w[16]);
     if (!pono || !fd2 || !by2) continue;
-    po.push([fd2.d, by2, afterDash(w[4]), afterDash(w[1]), afterDash(w[3])]);
+    var psap = fixDateJS(w[26]);
+    po.push([fd2.d, by2, afterDash(w[4]), afterDash(w[1]), afterDash(w[3]), psap ? psap.d : null]);
   }
   var now = new Date();
   return {

@@ -97,6 +97,7 @@ def main(xlsx_path, out_path):
             clean(r[12]),            # 4 stage
             dt_iso(r[24]),           # 5 upload SAP datetime
             dt_iso(r[25]),           # 6 upload Centric datetime
+            1 if clean(r[23]) == 'Checked' else 0,  # 7 import flag (cột X)
         ])
 
     po_rows = []
@@ -113,6 +114,7 @@ def main(xlsx_path, out_path):
             after_dash(r[4]),        # 2 customer
             after_dash(r[1]),        # 3 PO type
             after_dash(r[3]),        # 4 status
+            fix_date(r[26])[0],      # 5 ngày upload SAP (cột AA, đi kèm checkbox cột Z)
         ])
 
     payload = {
